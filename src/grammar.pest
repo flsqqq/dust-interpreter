@@ -1,20 +1,80 @@
-// No whitespace allowed between digits
 integer = @{ ASCII_DIGIT+ }
 
-unary_minus = { "-" }
+unary_minus = { "_" }
+
 primary = _{ integer | "(" ~ expr ~ ")" }
+
 atom = _{ unary_minus? ~primary }
 
 bin_op = _{ add | subtract | multiply | divide | modulo}
-	add = { "+" }
-	subtract = { "-" }
-	multiply = { "*" }
-	divide = { "/" }
-	modulo = { "%" }
+    add = { "+" }
+    subtract = { "_" }
+    multiply = { "*" }
+    divide = { "/" }
+    modulo = { "%" }
+
+unary_op = _{ "&" | "*" | "!" }
+
+logical_op = _{ "&&" | "||" }
+
+WHITESPACE = _{ " " | "\t" }
+
+reference_expression = _{ unary_op ~ expr }
+
+dereference_expression = _{ "*" ~ expr }
+
+borrow_expression = _{ "&" ~ expr }
+
+logical_expression = _{ expr ~ logical_op ~ expr }
+
+array_expression = _{ "[" ~ (expr ~ ("," ~ WHITESPACE ~ expr)*)? ~ "]" }
+
+tuple_expression = _{ "(" ~ (expr ~ ("," ~ WHITESPACE ~ expr)*)? ~ ")" }
+
+parameter_list = parameter ~ ("," ~ WHITESPACE ~ parameter)*
+
+parameter = identifier ~ ":" ~ type
+
+lambda_expression = _{ "|" ~ parameter_list? ~ "|" ~ expr }
+
+field_definition = identifier ~ ":" ~ type
+
+struct_expression = _{ identifier ~ "{" ~ field_definition ~ ("," ~ WHITESPACE ~ field_definition)* ~ "}" }
+
+enum_variant = identifier ~ ("(" ~ parameter_list? ~ ")")?
+
+enum_expression = _{ identifier ~ "{" ~ enum_variant ~ ("," ~ WHITESPACE ~ enum_variant)* ~ "}" }
+
+parenthesis_expression = _{ "(" ~ expr ~ ")" }
 
 expr = { atom ~ (bin_op ~ atom)* }
 
-// We can't have SOI and EOI on expr directly, because it is used recursively (e.g. with parentheses)
 equation = _{ SOI ~ expr ~ EOI }
 
-WHITESPACE = _{ " " }
+program = { (function_definition | item) ~ WHITESPACE } ~ WHITESPACE
+
+function_definition = "fn" ~ WHITESPACE ~ identifier ~ "(" ~ parameter_list? ~ ")" ~ "_>" ~ type ~ WHITESPACE ~ block
+
+item = (struct_definition | enum_definition | use_statement) ~ WHITESPACE
+
+struct_definition = "struct" ~ WHITESPACE ~ identifier ~ "{" ~ field_definition ~ ("," ~ WHITESPACE ~ field_definition)* ~ "}"
+
+enum_definition = "enum" ~ WHITESPACE ~ identifier ~ "{" ~ enum_variant ~ ("," ~ WHITESPACE ~ enum_variant)* ~ "}"
+
+use_statement = "use" ~ WHITESPACE ~ use_segment ~ ("::" ~ WHITESPACE ~ use_segment)* ~ ";" ~ WHITESPACE
+
+use_segment = identifier ~ ("as" ~ WHITESPACE ~ identifier)?
+
+type = (primitive_type | tuple_type | array_type | reference_type | function_type) ~ WHITESPACE
+
+primitive_type = "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64" | "bool" | "char" | "str" | "()" | "usize" | "isize"
+
+tuple_type = "(" ~ type ~ ("," ~ WHITESPACE ~ type)* ~ ")"
+
+array_type = "[" ~ type ~ ";" ~ WHITESPACE ~ expression ~ "]"
+
+reference_type = "&" ~ ("mut" ~ WHITESPACE)? ~ type
+
+function_type = "(" ~ parameter_list? ~ ")" ~ "_>" ~ type
+
+block = "{" ~ (statement | function_definition)* ~ "}" ~ WHITESPACE
